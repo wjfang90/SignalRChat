@@ -1,0 +1,20 @@
+﻿@using Chat.SignalRChat.Models
+
+@model JsonResult
+@{
+    ViewData["Title"] = "ChatHubT";
+ var messageInfo = ViewBag.MessageInfo as MessageInfo;
+ var messageJson = ViewBag.MessageInfoJson as JsonResult;
+
+}
+<h1>@ViewData["Title"]</h1>
+<div>
+    @Html.Raw(System.Text.Json.JsonSerializer.Serialize(messageInfo))
+</div>
+<div>
+
+    @Html.Raw(System.Text.Json.JsonSerializer.Serialize(messageJson.Value))
+</div>
+<div>
+    @this.Model.Value
+</div>

@@ -1,0 +1,393 @@
+﻿@using Chat.Models
+@model List<GroupInfo>
+@{
+    ViewData["Title"] = "ChatHub";
+}
+<script src="~/js/signalr/dist/browser/signalr.min.js" asp-append-version="true"></script>
+<script src="~/lib/jquery/dist/jquery.js"></script>
+<script type="text/javascript" asp-append-version="true">
+
+    window.onload = function () {
+
+        Date.prototype.format = function (fmt) {
+            var o = {
+                "M+": this.getMonth() + 1,                 //月份
+                "d+": this.getDate(),                    //日
+                "h+": this.getHours(),                   //小时
+                "m+": this.getMinutes(),                 //分
+                "s+": this.getSeconds(),                 //秒
+                "q+": Math.floor((this.getMonth() + 3) / 3), //季度
+                "S": this.getMilliseconds()             //毫秒
+            };
+            if (/(y+)/.test(fmt)) {
+                fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+            }
+            for (var k in o) {
+                if (new RegExp("(" + k + ")").test(fmt)) {
+                    fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+                }
+            }
+            return fmt;
+        }
+
+        var MessageType = {
+            SystemMessage: 0,
+            UserMessage: 1
+        };
+
+        var SystemMessageType = {
+            Connect: 0,
+            Distconnect: 1,
+            JoinGroup: 2,
+            LeftGroup: 3
+        }
+
+        //var userName = this.document.getElementById("userInput").value;
+        //var groupName = this.document.getElementById("groupInput").value;
+
+        //const HubConnection = new signalR.HubConnectionBuilder();
+        //.withUrl("ChatHubT?userName=" + userName + "&groupName=" + groupName)
+        //.configureLogging(signalR.LogLevel.Trace)
+        ////.withAutomaticReconnect([0, 2000, 5000, 10000, 20000])
+        //.build();
+
+
+        document.getElementById("connButton").disabled = false;
+        document.getElementById("disconnButton").disabled = true;
+
+        document.getElementById("joinGroupButton").disabled = true;
+        document.getElementById("leaveGroupButton").disabled = true;
+
+        document.getElementById("sendAllButton").disabled = true;
+        document.getElementById("sendGroupButton").disabled = true;
+        document.getElementById("sendUserButton").disabled = true;
+
+
+        //ReceiveMessage 是实现类中SendMessage指定的接收消息的方法名
+        //conn.on("ReceiveMessage", function (user, message) {
+        //    var encodeMsg = user + " 说 " + message;
+
+        //    var li = document.createElement("li");
+        //    li.textContent = encodeMsg;
+
+        //    document.getElementById("messagesList").appendChild(li);
+        //});
+
+
+
+
+
+        //HubConnection.start().then(function () {
+        //    document.getElementById("sendButton").disabled = false;
+        //    document.getElementById("connButton").disabled = false;
+        //}).catch(function (errer) {
+        //    return console.error(errer.toString());
+        //});
+
+
+        //连接
+        document.getElementById("connButton").addEventListener("click", function (event) {
+
+            var userName = document.getElementById("userInput").value;
+            var groupName = document.getElementById("groupInput").value;
+
+            HubConnection = new signalR.HubConnectionBuilder()
+                .withUrl("ChatHubT?userName=" + userName + "&groupName=" + groupName)
+                .configureLogging(signalR.LogLevel.Trace)
+                //.withAutomaticReconnect([0, 2000, 5000, 10000, 20000])
+                .build();
+
+            //fang add 20201102
+            HubConnection.serverTimeoutInMilliseconds = 10 * 60 * 1000;
+
+
+            //通知消息
+            HubConnection.on("OnNotice", function (request) {
+                if (request.SystemMessageType == SystemMessageType.JoinGroup || request.SystemMessageType == SystemMessageType.LeftGroup) {
+                    loadGoups();
+                }
+                var encodeMsg = request.Message + " " + new Date(request.SendTime).format("yyyy-MM-dd hh:mm:ss");
+                var li = document.createElement("li");
+                li.textContent = encodeMsg;
+
+                document.getElementById("messagesList").appendChild(li);
+            });
+
+            //ReceiveMessage 是实现类中SendMessage指定的接收消息的方法名，自定义对象参数
+            HubConnection.on("ReceiveMessage", function (request) {
+                var encodeMsg = "";
+                if (request.MessageType == MessageType.UserMessage) {
+                    if (request.Sender) {
+                        encodeMsg += request.Sender;
+                    }
+                    encodeMsg += ":" + request.Message + " " + new Date(request.SendTime).format("yyyy-MM-dd hh:mm:ss");
+                }
+
+                var li = document.createElement("li");
+                li.textContent = encodeMsg;
+
+                document.getElementById("messagesList").appendChild(li);
+            });
+
+            var user = document.getElementById("userInput").value;
+            if (!user) {
+                var li = document.createElement("li");
+                li.textContent = "user is empty";
+
+                document.getElementById("messagesList").appendChild(li);
+                return false;
+            }
+
+            HubConnection.start().then(function () {
+                document.getElementById("connButton").disabled = true;
+                document.getElementById("disconnButton").disabled = false;
+
+                document.getElementById("joinGroupButton").disabled = false;
+                document.getElementById("leaveGroupButton").disabled = true;
+
+                document.getElementById("sendAllButton").disabled = false;
+                document.getElementById("sendGroupButton").disabled = true;
+                document.getElementById("sendUserButton").disabled = false;
+            }).catch(function (errer) {
+                return console.error(errer.toString());
+            });
+        });
+
+
+        //加入分组
+        document.getElementById("joinGroupButton").addEventListener("click", function (event) {
+            var groupName = document.getElementById("groupInput").value;
+            var userName = document.getElementById("userInput").value;
+
+            document.getElementById("joinGroupButton").disabled = true;
+            document.getElementById("leaveGroupButton").disabled = false;
+            document.getElementById("sendGroupButton").disabled = false;
+
+            HubConnection.invoke("JoinGroup", groupName, userName)
+                .catch(function (error) {
+                    return console.error(error.toString());
+                });
+        });
+
+        //离开分组
+        document.getElementById("leaveGroupButton").addEventListener("click", function (event) {
+            var groupName = document.getElementById("groupInput").value;
+            var userName = document.getElementById("userInput").value;
+
+            document.getElementById("leaveGroupButton").disabled = true;
+            document.getElementById("joinGroupButton").disabled = false;
+            document.getElementById("sendGroupButton").disabled = true;
+
+            HubConnection.invoke("LeaveGroup", groupName, userName)
+                .catch(function (error) {
+                    return console.error(error.toString());
+                });
+        });
+
+        //给所有人(在线)发送消息
+        document.getElementById("sendAllButton").addEventListener("click", function (event) {
+            var user = document.getElementById("userInput").value;
+            var message = document.getElementById("messageInput").value;
+
+            if (!message) {
+                var li = document.createElement("li");
+                li.textContent = "message is empty";
+
+                document.getElementById("messagesList").appendChild(li);
+                return false;
+            }
+
+            //SendMessage hub实现类中方法名
+            //conn.invoke("SendMessage", user, message)
+            //    .catch(function (error) {
+            //        return console.error(error.toString());
+            //    });
+
+            //SendMessage hub实现类中方法名，自定义对象参数
+            var messageInfo = {};
+            messageInfo.Sender = user;
+            messageInfo.Message = message;
+            messageInfo.MessageType = MessageType.UserMessage;
+
+            HubConnection.invoke("SendToAll", messageInfo)
+                .catch(function (error) {
+                    return console.error(error.toString());
+                });
+        });
+
+
+
+        //给指定组发送消息
+        document.getElementById("sendGroupButton").addEventListener("click", function (event) {
+            var user = document.getElementById("userInput").value;
+            var groupName = document.getElementById("groupInput").value;
+            var message = document.getElementById("messageInput").value;
+
+            if (!message || !groupName) {
+                var li = document.createElement("li");
+                li.textContent = "group or message is empty";
+
+                document.getElementById("messagesList").appendChild(li);
+                return false;
+            }
+
+            //SendMessage hub实现类中方法名，自定义对象参数
+            var messageInfo = {};
+            messageInfo.Sender = user;
+            messageInfo.Message = message;
+            messageInfo.MessageType = MessageType.UserMessage;
+
+            HubConnection.invoke("SendToGroup", messageInfo, groupName)
+                .catch(function (error) {
+                    return console.error(error.toString());
+                });
+        });
+
+
+        //给指定用户发送消息
+        document.getElementById("sendUserButton").addEventListener("click", function (event) {
+            var user = document.getElementById("userInput").value;
+            var message = document.getElementById("messageInput").value;
+
+            if (!message || !user) {
+                var li = document.createElement("li");
+                li.textContent = "user or message is empty";
+
+                document.getElementById("messagesList").appendChild(li);
+                return false;
+            }
+
+            //SendMessage hub实现类中方法名，自定义对象参数
+            var messageInfo = {};
+            messageInfo.Sender = user;
+            messageInfo.Message = message;
+            messageInfo.MessageType = MessageType.UserMessage;
+
+            HubConnection.invoke("SendToUser", messageInfo, user)
+                .catch(function (error) {
+                    return console.error(error.toString());
+                });
+        });
+
+
+        //断开连接
+        document.getElementById("disconnButton").addEventListener("click", function (event) {
+            HubConnection.stop().then(function () {
+                document.getElementById("connButton").disabled = false;
+                document.getElementById("sendAllButton").disabled = true;
+                document.getElementById("joinGroupButton").disabled = true;
+                document.getElementById("sendGroupButton").disabled = true;
+                document.getElementById("leaveGroupButton").disabled = true;
+                document.getElementById("sendUserButton").disabled = true;
+
+                document.getElementById("disconnButton").disabled = true;
+            }).catch(function (errer) {
+                return console.error(errer.toString());
+            });
+        });
+    }
+
+    function loadGoups() {
+        var url = "/home/GetGroups";
+        $.get(url, function (data) {
+            var lis = $("#groupList>li");
+            lis.each(function () {
+                $("#groupList").remove(this);
+            });
+
+            $.each(data, function () {
+
+                var ul = $("<ul></ul>");
+                $.each(data.Users, function () {
+                    ul.add($("<li>" + this.UserName + "</li>"));
+                });
+
+                var ulDiv = $("<div></div>");
+                ulDiv.add(ul);
+
+                var groupLi = $("<li></li>");
+                var groupLiDiv = $("<div>" + this.GroupName + "</div>");
+                groupLi.add(groupLiDiv);
+                groupLi.add(ulDiv);
+
+                $("#groupList").add(groupLi);
+            });
+        });
+    }
+
+</script>
+<div class="text-center">
+    <div class="container">
+        <div class="row">
+            <div class="col-6">
+                <ul id="groupList">
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var group in this.Model)
+                        {
+                            <li>
+                                <div>@group.GroupName</div>
+                                <div>
+                                    <ul id="userList">
+                                        @if (group.Users != null && group.Users.Any())
+                                        {
+                                            foreach (var user in group.Users)
+                                            {
+                                                <li>@user.UserName</li>
+                                            }
+                                        }
+                                    </ul>
+                                </div>
+                            </li>
+                        }
+                    }
+                </ul>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-2">User</div>
+            <div class="col-4">
+                <input type="text" id="userInput" />
+                <input type="button" id="connButton" value="connect" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-2">group</div>
+            <div class="col-2">
+                <input type="text" id="groupInput" value="testGroup" />
+            </div>
+            <div class="col-2">
+                <input type="button" id="joinGroupButton" value="join group" />
+                <input type="button" id="leaveGroupButton" value="leave group" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-2">Message</div>
+            <div class="col-4"><input type="text" id="messageInput" /></div>
+        </div>
+        <div class="row">&nbsp;</div>
+        <div class="row">
+            <div class="col-6">
+                <input type="button" id="sendAllButton" value="Send to all Message" />
+                <input type="button" id="sendGroupButton" value="Send to group Message" />
+                <input type="button" id="sendUserButton" value="Send to User Message" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-6">
+                <input type="button" id="disconnButton" value="disconnect" />
+            </div>
+        </div>
+
+    </div>
+    <div class="row">
+        <div class="col-12">
+            <hr />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-6">
+            <ul id="messagesList"></ul>
+        </div>
+    </div>
+</div>
