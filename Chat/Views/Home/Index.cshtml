@@ -290,27 +290,24 @@
     function loadGoups() {
         var url = "/home/GetGroups";
         $.get(url, function (data) {
-            var lis = $("#groupList>li");
-            lis.each(function () {
-                $("#groupList").remove(this);
-            });
+            $("#groupList>li").remove();
 
-            $.each(data, function () {
+            $.each(data, function (index, itemGroup) {
 
                 var ul = $("<ul></ul>");
-                $.each(data.Users, function () {
-                    ul.add($("<li>" + this.UserName + "</li>"));
+                $.each(itemGroup.Users, function (index, itemUser) {
+                    ul.append($("<li>" + itemUser.UserName + "</li>"));
                 });
 
                 var ulDiv = $("<div></div>");
-                ulDiv.add(ul);
+                ulDiv.append(ul);
 
                 var groupLi = $("<li></li>");
-                var groupLiDiv = $("<div>" + this.GroupName + "</div>");
-                groupLi.add(groupLiDiv);
-                groupLi.add(ulDiv);
+                var groupLiDiv = $("<div>" + itemGroup.GroupName + "</div>");
+                groupLi.append(groupLiDiv);
+                groupLi.append(ulDiv);
 
-                $("#groupList").add(groupLi);
+                $("#groupList").append(groupLi);
             });
         });
     }
@@ -348,37 +345,33 @@
             <div class="col-2">User</div>
             <div class="col-4">
                 <input type="text" id="userInput" />
+            </div>
+            <div class="col-4">
                 <input type="button" id="connButton" value="connect" />
+                <input type="button" id="disconnButton" value="disconnect" />
             </div>
         </div>
         <div class="row">
             <div class="col-2">group</div>
-            <div class="col-2">
+            <div class="col-4">
                 <input type="text" id="groupInput" value="testGroup" />
             </div>
-            <div class="col-2">
+            <div class="col-4">
                 <input type="button" id="joinGroupButton" value="join group" />
                 <input type="button" id="leaveGroupButton" value="leave group" />
             </div>
         </div>
         <div class="row">
             <div class="col-2">Message</div>
-            <div class="col-4"><input type="text" id="messageInput" /></div>
+            <div class="col-6"><input type="text" id="messageInput" /></div>
         </div>
-        <div class="row">&nbsp;</div>
         <div class="row">
-            <div class="col-6">
+            <div class="col-10">
                 <input type="button" id="sendAllButton" value="Send to all Message" />
                 <input type="button" id="sendGroupButton" value="Send to group Message" />
                 <input type="button" id="sendUserButton" value="Send to User Message" />
             </div>
         </div>
-        <div class="row">
-            <div class="col-6">
-                <input type="button" id="disconnButton" value="disconnect" />
-            </div>
-        </div>
-
     </div>
     <div class="row">
         <div class="col-12">
@@ -386,7 +379,7 @@
         </div>
     </div>
     <div class="row">
-        <div class="col-6">
+        <div class="col-10">
             <ul id="messagesList"></ul>
         </div>
     </div>
